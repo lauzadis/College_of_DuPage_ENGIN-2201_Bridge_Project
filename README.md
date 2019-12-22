@@ -22,8 +22,6 @@ You can create your bridge using my GUI and then run it using the provided .exe 
 #### Bridge GUI
 <img src="https://i.imgur.com/d56HND8.png">
 
-#### Loading the Bridge in the old .exe
-<img src="https://i.imgur.com/xt1J8lu.png">
+#### Running the Bridge with the old .exe
 
-#### Finished Bridge Analysis
-<img src="https://i.imgur.com/TTQbHYk.png">
+![Bridge Demo](https://i.imgur.com/rNWAU2n.gif)
