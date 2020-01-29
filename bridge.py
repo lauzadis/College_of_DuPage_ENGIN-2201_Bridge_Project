@@ -1,18 +1,12 @@
 import math
+import pandas as pd
 import matplotlib.pyplot as plt
-import re
 
-from io import StringIO
+import numpy as np
+import numpy.linalg as lin
 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-
-from sapy import displmethod
-from sapy import element
-from sapy import gmsh
-from sapy import structure
-from sapy import plotter
-
 
 
 class Bridge():
@@ -25,6 +19,13 @@ class Bridge():
         self.num_displacements = 0
         self.left_node = None
         self.right_node = None
+        
+        self.is_solved = False        
+        self.load = 0
+        self.internal_forces = None
+        self.efficiency = 0      
+        self.broken_members = None  
+
 
     def add_node(self, node):
         self.num_nodes += 1
@@ -37,11 +38,15 @@ class Bridge():
 
     def add_member(self, member):
         self.num_members += 1
-        self.members.append(member)
+        if member not in self.members:
+            self.members.append(member)
 
     def remove_member(self, member):
         self.num_members -= 1
         self.members.remove(member)
+
+    def set_members(self, list_of_members):
+        self.members = list_of_members
 
     def get_members(self):
         return self.members
@@ -63,6 +68,11 @@ class Bridge():
     def get_member(self, node_a, node_b):
         for member in self.get_members():
             if node_a.get_id() == member.get_nodeA().get_id() and node_b.get_id() == member.get_nodeB().get_id() or node_a.get_id() == member.get_nodeB().get_id() and node_b.get_id() == member.get_nodeA().get_id():
+                return member
+
+    def get_member_by_id(self, id):
+        for member in self.get_members():
+            if member.get_id() == id:
                 return member
             
     def load_from_file(self, filename):
@@ -166,49 +176,89 @@ class Bridge():
     def get_right_node(self):
         return self.right_node
 
-
-    def solve(self):
-        # Make sure that there are at least two vertical supports on either side
-        assert(self.left_node.get_support_y() and self.right_node.get_support_y())
-
-        
-        mesh = ''
-        nodes = {}
-        # Parse Nodes
-        count = 1
-        for node in self.get_nodes():
-            mesh += ('Point(' + str(count) + ') = {' + str(node.get_x()) + ', ' + str(node.get_y()) + ', 0};\n')
-            nodes[(node.get_x(), node.get_y())] = count
-            count += 1
-        mesh += '\n'
-
-        # Parse Members
-        count = 1
+    def get_total_length(self):
+        total = 0
         for member in self.get_members():
-            node_a = member.get_nodeA()
-            node_b = member.get_nodeB()
-            node_a_coords = (node_a.get_x(), node_a.get_y())
-            node_b_coords = (node_b.get_x(), node_b.get_y())
-            mesh += 'Line(' + str(count) + ') = {' + str(nodes[node_a_coords]) + ', ' + str(nodes[node_b_coords]) + '};\n'
+            total += member.get_length()
+        return total
 
-        # Create the mesh
-        # mesh = gmsh.Parse(StringIO(mesh))
+    def get_neighbor_nodes(self, node):
+        nodes = []
+        for member in self.get_members():
+            if member.get_nodeA().get_id() == node.get_id():
+                nodes.append(member.get_nodeB())
+            elif member.get_nodeB().get_id() == node.get_id():
+                nodes.append(member.get_nodeA())
+        return nodes
 
-        # Parse the supports
-        left_coords = (self.left_node.get_x(), self.left_node.get_y())
-        right_coords = (self.right_node.get_x(), self.right_node.get_y())
-
-        bound = {
-                    nodes[left_coords]: [int(self.left_node.get_support_x()), int(self.left_node.get_support_y())],
-                    nodes[right_coords]: [int(self.right_node.get_support_x()), int(self.right_node.get_support_y())]
-                }
-
-        print(bound)
-    
-
-
-
+    def apply_load_to_nodes(self):
+        for node in self.load_nodes:
+            node.set_load(self.bridge_load / len(self.load_nodes))  # distribute the load equally over each loading node
         
+    
+    def solve(self):
+        self.load_nodes = self.get_load_nodes()
+        self.bridge_load = 0  # Set the initial load        
+        # Construct the matrix (excluding the constraints)
+        matrix_headers = []
+        for node in self.get_nodes():
+            matrix_headers.append(str(node.get_id()) + 'x')
+            matrix_headers.append(str(node.get_id()) + 'y')
+        
+        # matrix = pd.DataFrame(columns=[i+1 for i in range(len(self.nodes))], index=[i+1 for i in range(len(self.nodes))])
+        columns = ['F' + str(i.get_id()) for i in self.members]
+        
+        matrix = pd.DataFrame(0, columns=columns, index=matrix_headers)
+
+        # Add the support reactions to the matrix (vertical and horizontal get different reactions)
+
+        for node in self.get_nodes():
+            if node.get_support_x():
+                columns.append('R' + str(node.get_id()) + 'x')
+                matrix.loc[node.get_id() + 'x', 'R' + str(node.get_id()) + 'x'] = 1
+            if node.get_support_y():
+                columns.append('R' + str(node.get_id()) + 'x')
+                matrix.loc[node.get_id() + 'y', 'R' + str(node.get_id()) + 'y'] = 1
+
+        matrix = matrix.fillna(0)
+
+        for member in self.members:
+            a = member.get_nodeA()
+            b = member.get_nodeB()
+
+            a_horizontal = (b.get_x() - a.get_x()) / member.get_length()            
+            a_vertical = (b.get_y() - a.get_y()) / member.get_length()
+            
+            b_horizontal = (a.get_x() - b.get_x()) / member.get_length()
+            b_vertical = (a.get_y() - b.get_y()) / member.get_length()
+            
+            matrix.loc[a.get_id() + 'x', 'F' + str(member.get_id())] = a_horizontal
+            matrix.loc[a.get_id() + 'y', 'F' + str(member.get_id())] = a_vertical
+            
+            matrix.loc[b.get_id() + 'x', 'F' + str(member.get_id())] = b_horizontal
+            matrix.loc[b.get_id() + 'y', 'F' + str(member.get_id())] = b_vertical
+
+        load_matrix = pd.Series(0, index=matrix.index)
+        for node in self.get_load_nodes():
+            load_matrix.loc[node.get_id() + 'y'] = 1 / len(self.load_nodes)
+
+        result = pd.Series(np.linalg.lstsq(matrix,load_matrix, rcond=None)[0], index=columns).filter(like='F')
+
+        broken_members = result.where(np.isclose(result.abs(), result.abs().max(), rtol=1e-03, atol=1e-03, equal_nan=False)).dropna()
+
+        total_load = 500000 / abs(broken_members.max())
+      
+        self.load = total_load
+
+        self.is_solved = True
+        self.internal_forces = result * total_load
+        self.efficiency = self.load / self.get_total_length()
+        self.broken_members = broken_members
+        return
+        # return self.internal_forces, efficiency
+
+
+
 class Node():
     def __init__(self, node_id, xCoord, yCoord, xSupport, ySupport):
         assert 0 <= xSupport <= 1 and 0 <= ySupport <= 1 
@@ -241,12 +291,14 @@ class Node():
         return self.support_y
 
     def set_load(self, val):
-        assert val > 0
+        assert val >= 0
         self.load = val
+
+    def get_load(self):
+        return self.load
 
     def set_load_angle(self, angle):
         self.load_angle = angle
-
 
     def get_x(self):
         return self.x
@@ -284,6 +336,9 @@ class Member():
     def get_nodeB(self):
         return self.B
 
+    def get_id(self):
+        return self.id 
+
     def __str__(self):
         # return 'MEMBER BETWEEN THE FOLLOWING NODES:\n' + str(self.A) + str(self.B)
 
@@ -292,12 +347,19 @@ class Member():
         
 if __name__ == '__main__':
     bridge = Bridge()
-    bridge.load_from_file('../../Statics_Project/simple.txt')
-    bridge.get_load_nodes()
 
-    for node in bridge.get_load_nodes():
-        node.set_load_angle(-1.5707963267948966)
+    # Check that members cannot be stacked
+    # bridge.add_node(Node(1,0,0,0,0))
+    # bridge.add_node(Node(2,10,0,0,0))
+    # bridge.add_member(Member(1,bridge.get_node('1'), bridge.get_node('2')))
+    # bridge.add_member(Member(2,bridge.get_node('1'), bridge.get_node('2')))
+
+    # for member in bridge.get_members():
+    #     print(member.get_length())
 
 
-    bridge.solve()
-    # print(bridge.is_solvable())
+    bridge.load_from_file('./input.txt')
+    internal_forces, efficiency = bridge.solve()
+    print('Load:', bridge.load)
+    print('Total Length:', bridge.get_total_length())
+    print('Efficiency:', efficiency)

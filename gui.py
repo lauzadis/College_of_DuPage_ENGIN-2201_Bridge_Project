@@ -52,7 +52,7 @@ class MainWindow(QMainWindow):
         # Implement Clicks
         self.canvas.mpl_connect('pick_event', self.onpick_node)
 
-        self.canvas.mpl_connect('button_press_event', self.onclick)
+        # self.canvas.mpl_connect('button_press_event', self.onclick)
 
         # BRIDGE MODIFICATION        
         right_subgrid = QGridLayout()
@@ -148,7 +148,7 @@ class MainWindow(QMainWindow):
         solution_subgrid = QGridLayout()
 
         solve_bridge_button = QPushButton('Solve Bridge')
-        # solve_bridge_button.clicked.connect(self.solve_bridge)
+        solve_bridge_button.clicked.connect(self.solve_bridge)
         solution_subgrid.addWidget(solve_bridge_button, 0, 0)
 
         grid.addLayout(solution_subgrid, 0, 2)    
@@ -156,16 +156,20 @@ class MainWindow(QMainWindow):
         centralWidget.setLayout(grid)
         self.show()
 
+
     def add_node(self):
-        print()
+        '''
+        Adds a node to the bridge by reading the xcoord, ycoord, xsupport, ysupport boxes.
+        If the xcoord or ycoord box is empty, it won't do anything.
+        '''
+
         x_coord = self.x_coord.text()
         y_coord = self.y_coord.text()
         x_support = self.x_support.isChecked()
         y_support = self.y_support.isChecked()
 
         try:
-            node = Node(self.bridge.num_nodes+1, x_coord, y_coord, x_support, y_support)
-            print(node.get_id())
+            node = Node(self.bridge.get_nodes()[-1].get_id()+1, x_coord, y_coord, x_support, y_support)
             self.bridge.add_node(node)
         except:
             pass
@@ -176,20 +180,23 @@ class MainWindow(QMainWindow):
 
 
     def remove_node(self):
+        '''
+        Removes the selected node, all members it is a part of, and its X and Y supports.
+        If there is no selected node, it will check the 'Node ID' text box too.
+        '''
+
         if self.selected_node == None:
             node = self.bridge.get_node(self.remove_node_id.text())
             if node is not None:
                 self.selected_node = node
-                print('Found node')
             else:
                 return
 
         # Remove selected node's members
-        for member in self.bridge.get_members():
-            if member.get_nodeA().get_id() == self.selected_node.get_id():
-                self.bridge.remove_member(member)
-            elif member.get_nodeB().get_id() == self.selected_node.get_id():
-                self.bridge.remove_member(member)
+            # Filter to find the members that DON'T contain the node we're removing
+            # Then set the bridge's members to that filtered list
+        self.bridge.set_members([member for member in self.bridge.get_members() if member.get_nodeA().get_id() != self.selected_node.get_id() and member.get_nodeB().get_id() != self.selected_node.get_id()])
+        self.bridge.num_members = len(self.bridge.get_members())
         
         # Remove displacements
         if self.selected_node.get_support_x():
@@ -207,6 +214,9 @@ class MainWindow(QMainWindow):
 
 
     def clear_selection(self):
+        '''
+        Clears the selected node
+        '''
         self.selected_node = None
         self.ax.clear()
         self.plot_bridge()
@@ -214,25 +224,40 @@ class MainWindow(QMainWindow):
 
 
     def add_member(self):
+        '''
+        Adds a member to the bridge by reading the nodeA and nodeB boxes.
+        If either of the boxes are empty, it won't do anything.
+        '''
+
         # Get node ID's, add to bridge
         node_a = self.bridge.get_node(self.node_a.text())
         node_b = self.bridge.get_node(self.node_b.text())
+        
+        # check if the input boxes are empty
         if node_a == None or node_b == None:
-            print('Failed to find node')
-            # for node in n
             return
 
+        # check if the member already exists
+        for member in self.bridge.get_members():
+            if (member.get_nodeA() == node_a and member.get_nodeB() == node_b) or (member.get_nodeA() == node_b and member.get_nodeB() == node_a):
+                return
+
+        # create the member, add it to the bridge
         member_id = len(self.bridge.get_members()) + 1
-
         member = Member(member_id, node_a, node_b)
-
         self.bridge.add_member(member)
+
+        # redraw the plot
         self.ax.clear()
         self.plot_bridge()
         self.canvas.draw()
 
 
     def member_on_return_pressed(self):
+        '''
+        Captures the 'Enter' key press when you're typing in either the nodeA or nodeB box.
+        Tries to add the member based on what is in the boxes.
+        '''
         try:
             self.add_member()
         except:
@@ -240,6 +265,10 @@ class MainWindow(QMainWindow):
 
 
     def remove_member(self):
+        '''
+        Removes the member between nodeA and nodeB. If either box is empty, or the node doesn't exist, it does nothing.
+
+        '''
         node_a = self.bridge.get_node(self.node_a.text())
         node_b = self.bridge.get_node(self.node_b.text())
 
@@ -251,11 +280,15 @@ class MainWindow(QMainWindow):
             self.ax.clear()
             self.plot_bridge()
             self.canvas.draw()
-        except:
+        except:  # The member does not exist
             pass
 
 
     def on_x_support_change(self):
+        '''
+        Captures the click in the X-support checkbox, tries to update the x-support of the selected node.
+        '''
+
         if self.selected_node is not None:
             current_state = bool(self.selected_node.get_support_x())
             self.selected_node.set_support_x(int(not current_state))
@@ -266,6 +299,9 @@ class MainWindow(QMainWindow):
 
 
     def on_y_support_change(self):
+        '''
+        Captures the click in the Y-support checkbox, tries to update the y-support of the selected node.
+        '''
         if self.selected_node is not None:
             current_state = bool(self.selected_node.get_support_y())
             self.selected_node.set_support_y(int(not current_state))
@@ -275,7 +311,11 @@ class MainWindow(QMainWindow):
                 self.bridge.num_displacements += 1
 
 
-    def on_x_coord_change(self):      
+    def on_x_coord_change(self):     
+        '''
+        Captures the 'Enter' keypress in the x-coord box, tries to update the x-coord of the selected node. 
+        If there is no selected node, then it tries to make a new node at that coordinate.
+        ''' 
         if self.selected_node is not None:
             try:
                 self.selected_node.set_x(int(self.x_coord.text()))
@@ -296,6 +336,10 @@ class MainWindow(QMainWindow):
 
 
     def on_y_coord_change(self):
+        '''
+        Captures the 'Enter' keypress in the y-coord box, tries to update the y-coord of the selected node. 
+        If there is no selected node, then it tries to make a new node at that coordinate.
+        ''' 
         if self.selected_node is not None:
             try:
                 self.selected_node.set_y(int(self.y_coord.text()))
@@ -316,6 +360,9 @@ class MainWindow(QMainWindow):
 
 
     def redraw_plot(self, preserve_zoom=True):
+        '''
+        Redraws the plot, preserving zoom level.
+        '''
         # Preserve zoom
         xlim = self.ax.get_xlim()
         ylim = self.ax.get_ylim()
@@ -328,8 +375,11 @@ class MainWindow(QMainWindow):
 
 
     def onpick_node(self, event):
+        '''
+        Captures a 'click' event on a node, marks it as the selected node.
+        '''
+        
         if isinstance(event.artist, Line2D):
-            print('Clicked')
             self.selected_node = None
             self.redraw_plot()
 
@@ -369,7 +419,6 @@ class MainWindow(QMainWindow):
                 self.y_support.setChecked(False)
 
         else:
-            print('Clicked not a point')
             xlim = self.ax.get_xlim()
             ylim = self.ax.get_ylim()
             self.ax.clear()
@@ -379,24 +428,45 @@ class MainWindow(QMainWindow):
             self.ax.set_ylim(ylim)
 
 
-    def onclick(self, event):
-        pass
-        # if self.selected_node is not None:
-
-
-    def onpick_line(self, event):
-        pass
-
-
     def plot_bridge(self):
+        '''
+        Draws the bridge using matplotlib.
+        '''
         # Plot Members
-        for member in self.bridge.get_members():
-            # Get incident and terminal node
-            nodeA = member.get_nodeA()
-            nodeB = member.get_nodeB()
-            # Draw a line between the nodes
-            # self.ax.plot([nodeA.get_x(),nodeB.get_x()], [nodeA.get_y(),nodeB.get_y()], 'ro-', picker=self.onpick_line)
-            self.ax.plot([nodeA.get_x(),nodeB.get_x()], [nodeA.get_y(),nodeB.get_y()], 'ro-')
+
+        if self.bridge.is_solved:
+            print('we here')
+            self.ax.clear()
+            seismic = plt.cm.get_cmap('bwr', 2056)
+            
+            for member in self.bridge.get_members():                
+                force = self.bridge.internal_forces.loc['F'+str(member.get_id())]            
+                # print('Node Between', member.get_nodeA().get_id(), 'and', member.get_nodeB().get_id(), ':', member.get_id(), ':', force)
+                
+                # We need to map our -500,000 to 500,000 range to the color map's 0-1 range
+                force_remapped = force + 500000 / 1000000
+
+                nodeA = member.get_nodeA()
+                nodeB = member.get_nodeB()
+                # Draw a line between the nodes
+                self.ax.plot([nodeA.get_x(),nodeB.get_x()], [nodeA.get_y(),nodeB.get_y()], color=seismic(force_remapped))
+            
+
+            for member_id, _ in self.bridge.broken_members.items():
+                member = self.bridge.get_member_by_id(member_id[1:])
+                nodeA = member.get_nodeA()
+                nodeB = member.get_nodeB()
+                # Draw a line between the nodes
+                self.ax.plot([nodeA.get_x(),nodeB.get_x()], [nodeA.get_y(),nodeB.get_y()], 'k')
+               
+        else:
+            for member in self.bridge.get_members():
+
+                # Get incident and terminal node
+                nodeA = member.get_nodeA()
+                nodeB = member.get_nodeB()
+                # Draw a line between the nodes
+                self.ax.plot([nodeA.get_x(),nodeB.get_x()], [nodeA.get_y(),nodeB.get_y()], 'ro-')
 
         
         # Plot Nodes
@@ -423,18 +493,31 @@ class MainWindow(QMainWindow):
 
 
     def save_bridge(self):
-        print('Saving Bridge')
+        '''
+        Writes the current bridge to a user-defined text file.
+        '''
         options = QFileDialog.Options()
         # options |= QFileDialog.setFileMode('AnyFile')
         fileName, _ = QFileDialog.getSaveFileName(self,"QFileDialog.getOpenFileName()", "","All Files (*);;Text Files (*.txt)", options=options)
         if fileName:        
             self.bridge.save_to_file(fileName)
+
+
+    def solve_bridge(self):
+        bridge.solve()
+        print('Load:', self.bridge.load)
+        print('Length:', self.bridge.get_total_length())
+        print('Efficiency:', self.bridge.efficiency)
+        self.redraw_plot()
+        print(self.bridge.internal_forces)
+        
         
         
     def zoom(self, event):
         # Function to allow scroll zooming within a matplotlib plot
         # Credit to tacaswell
         # https://stackoverflow.com/questions/11551049/matplotlib-plot-zooming-with-scroll-wheel/12793033
+
         if event.button == 'down':
             # Zoom in 
             factor = 1.05
