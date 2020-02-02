@@ -5,9 +5,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import numpy.linalg as lin
 
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-
 
 class Bridge():
     def __init__(self):
@@ -343,23 +340,3 @@ class Member():
         # return 'MEMBER BETWEEN THE FOLLOWING NODES:\n' + str(self.A) + str(self.B)
 
         return 'Length:' + str(self.get_length())
-
-        
-if __name__ == '__main__':
-    bridge = Bridge()
-
-    # Check that members cannot be stacked
-    # bridge.add_node(Node(1,0,0,0,0))
-    # bridge.add_node(Node(2,10,0,0,0))
-    # bridge.add_member(Member(1,bridge.get_node('1'), bridge.get_node('2')))
-    # bridge.add_member(Member(2,bridge.get_node('1'), bridge.get_node('2')))
-
-    # for member in bridge.get_members():
-    #     print(member.get_length())
-
-
-    bridge.load_from_file('./input.txt')
-    internal_forces, efficiency = bridge.solve()
-    print('Load:', bridge.load)
-    print('Total Length:', bridge.get_total_length())
-    print('Efficiency:', efficiency)

@@ -13,8 +13,8 @@ import matplotlib.pyplot as plt
 
 from bridge import Bridge, Node, Member
 
-bridge = Bridge()
-file = None
+# bridge = Bridge()
+# file = None
 
 class MainWindow(QMainWindow):    
     def __init__(self):
@@ -130,6 +130,9 @@ class MainWindow(QMainWindow):
         remove_node_vbox.addWidget(clear_selection_button)
         right_subgrid.addLayout(remove_node_vbox, 2, 0)
 
+            
+
+
         grid.addLayout(right_subgrid, 0, 1)
             
             # Save Bridge
@@ -145,13 +148,23 @@ class MainWindow(QMainWindow):
 
 
         # Solution Menu
-        solution_subgrid = QGridLayout()
+        
+        solution_vbox = QVBoxLayout()
+        solution_vbox.setSpacing(0)
 
         solve_bridge_button = QPushButton('Solve Bridge')
         solve_bridge_button.clicked.connect(self.solve_bridge)
-        solution_subgrid.addWidget(solve_bridge_button, 0, 0)
+        solution_vbox.addWidget(solve_bridge_button)
 
-        grid.addLayout(solution_subgrid, 0, 2)    
+        self.efficiency_text = QLabel()
+        self.efficiency_text.setText('Efficiency: None')
+        self.efficiency_text.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+        self.efficiency_text.setFont(QFont('Arial', 20))
+
+
+        solution_vbox.addWidget(self.efficiency_text)
+        
+        grid.addLayout(solution_vbox, 2, 1)    
 
         centralWidget.setLayout(grid)
         self.show()
@@ -162,17 +175,20 @@ class MainWindow(QMainWindow):
         Adds a node to the bridge by reading the xcoord, ycoord, xsupport, ysupport boxes.
         If the xcoord or ycoord box is empty, it won't do anything.
         '''
+        if self.bridge.is_solved:
+            self.efficiency_text.setText('Efficiency: None')
+            self.bridge.is_solved = False
+
 
         x_coord = self.x_coord.text()
         y_coord = self.y_coord.text()
         x_support = self.x_support.isChecked()
         y_support = self.y_support.isChecked()
 
-        try:
-            node = Node(self.bridge.get_nodes()[-1].get_id()+1, x_coord, y_coord, x_support, y_support)
-            self.bridge.add_node(node)
-        except:
-            pass
+    
+        node = Node(self.bridge.get_nodes()[-1].get_id()+1, x_coord, y_coord, x_support, y_support)
+        self.bridge.add_node(node)
+       
 
         self.ax.clear()
         self.plot_bridge()
@@ -184,6 +200,10 @@ class MainWindow(QMainWindow):
         Removes the selected node, all members it is a part of, and its X and Y supports.
         If there is no selected node, it will check the 'Node ID' text box too.
         '''
+        if self.bridge.is_solved:
+            self.efficiency_text.setText('Efficiency: None')
+            self.bridge.is_solved = False
+
 
         if self.selected_node == None:
             node = self.bridge.get_node(self.remove_node_id.text())
@@ -229,6 +249,10 @@ class MainWindow(QMainWindow):
         If either of the boxes are empty, it won't do anything.
         '''
 
+        if self.bridge.is_solved:
+            self.efficiency_text.setText('Efficiency: None')
+            self.bridge.is_solved = False
+
         # Get node ID's, add to bridge
         node_a = self.bridge.get_node(self.node_a.text())
         node_b = self.bridge.get_node(self.node_b.text())
@@ -243,7 +267,7 @@ class MainWindow(QMainWindow):
                 return
 
         # create the member, add it to the bridge
-        member_id = len(self.bridge.get_members()) + 1
+        member_id = str(len(self.bridge.get_members()) + 1)
         member = Member(member_id, node_a, node_b)
         self.bridge.add_member(member)
 
@@ -269,6 +293,10 @@ class MainWindow(QMainWindow):
         Removes the member between nodeA and nodeB. If either box is empty, or the node doesn't exist, it does nothing.
 
         '''
+        if self.bridge.is_solved:
+            self.efficiency_text.setText('Efficiency: None')
+            self.bridge.is_solved = False
+
         node_a = self.bridge.get_node(self.node_a.text())
         node_b = self.bridge.get_node(self.node_b.text())
 
@@ -288,6 +316,9 @@ class MainWindow(QMainWindow):
         '''
         Captures the click in the X-support checkbox, tries to update the x-support of the selected node.
         '''
+        if self.bridge.is_solved:
+            self.efficiency_text.setText('Efficiency: None')
+            self.bridge.is_solved = False
 
         if self.selected_node is not None:
             current_state = bool(self.selected_node.get_support_x())
@@ -302,6 +333,10 @@ class MainWindow(QMainWindow):
         '''
         Captures the click in the Y-support checkbox, tries to update the y-support of the selected node.
         '''
+        if self.bridge.is_solved:
+            self.efficiency_text.setText('Efficiency: None')
+            self.bridge.is_solved = False
+
         if self.selected_node is not None:
             current_state = bool(self.selected_node.get_support_y())
             self.selected_node.set_support_y(int(not current_state))
@@ -316,6 +351,13 @@ class MainWindow(QMainWindow):
         Captures the 'Enter' keypress in the x-coord box, tries to update the x-coord of the selected node. 
         If there is no selected node, then it tries to make a new node at that coordinate.
         ''' 
+        if self.bridge.is_solved:
+            self.efficiency_text.setText('Efficiency: None')
+            self.bridge.is_solved = False
+
+        if self.x_coord.text() == '':
+            return
+
         if self.selected_node is not None:
             try:
                 self.selected_node.set_x(int(self.x_coord.text()))
@@ -340,6 +382,13 @@ class MainWindow(QMainWindow):
         Captures the 'Enter' keypress in the y-coord box, tries to update the y-coord of the selected node. 
         If there is no selected node, then it tries to make a new node at that coordinate.
         ''' 
+        if self.bridge.is_solved:
+            self.efficiency_text.setText('Efficiency: None')
+            self.bridge.is_solved = False
+
+        if self.y_coord.text() == '':
+            return
+
         if self.selected_node is not None:
             try:
                 self.selected_node.set_y(int(self.y_coord.text()))
@@ -435,10 +484,10 @@ class MainWindow(QMainWindow):
         # Plot Members
 
         if self.bridge.is_solved:
-            print('we here')
             self.ax.clear()
             seismic = plt.cm.get_cmap('bwr', 2056)
             
+            # Plot Members (Blue = Compression, Red = Tension)
             for member in self.bridge.get_members():                
                 force = self.bridge.internal_forces.loc['F'+str(member.get_id())]            
                 # print('Node Between', member.get_nodeA().get_id(), 'and', member.get_nodeB().get_id(), ':', member.get_id(), ':', force)
@@ -452,12 +501,29 @@ class MainWindow(QMainWindow):
                 self.ax.plot([nodeA.get_x(),nodeB.get_x()], [nodeA.get_y(),nodeB.get_y()], color=seismic(force_remapped))
             
 
+            # Plot Broken Member(s) in Black
             for member_id, _ in self.bridge.broken_members.items():
                 member = self.bridge.get_member_by_id(member_id[1:])
                 nodeA = member.get_nodeA()
                 nodeB = member.get_nodeB()
                 # Draw a line between the nodes
                 self.ax.plot([nodeA.get_x(),nodeB.get_x()], [nodeA.get_y(),nodeB.get_y()], 'k')
+
+
+            # Plot Zero-Load Member(s) in Green
+            zero_load = self.bridge.internal_forces.where(np.isclose(self.bridge.internal_forces, 0, rtol=1e-03, atol=1e-03, equal_nan=False)).dropna()
+            for member_id, _ in zero_load.items():
+                member = self.bridge.get_member_by_id(member_id[1:])
+                nodeA = member.get_nodeA()
+                nodeB = member.get_nodeB()
+                # Draw a line between the nodes
+                self.ax.plot([nodeA.get_x(),nodeB.get_x()], [nodeA.get_y(),nodeB.get_y()], 'g')
+
+
+            # Plot Loading Nodes
+            for node in self.bridge.load_nodes:
+                self.ax.arrow(node.get_x(), node.get_y(), dx=0, dy=-5, length_includes_head=True, head_width=2, head_length=1, width=0.5)
+                
                
         else:
             for member in self.bridge.get_members():
@@ -504,12 +570,18 @@ class MainWindow(QMainWindow):
 
 
     def solve_bridge(self):
+        if self.bridge.is_solved:
+            return
+
         bridge.solve()
-        print('Load:', self.bridge.load)
-        print('Length:', self.bridge.get_total_length())
-        print('Efficiency:', self.bridge.efficiency)
+        # print('Load:', self.bridge.load)
+        # print('Length:', self.bridge.get_total_length())
+        # print('Efficiency:', self.bridge.efficiency)
+        self.efficiency_text.setText('Efficiency: ' + str(int(self.bridge.efficiency)))
         self.redraw_plot()
-        print(self.bridge.internal_forces)
+        # print(self.bridge.internal_forces)
+        return
+        # self.bridge.is_solved = False
         
         
         
@@ -589,7 +661,7 @@ class ChoiceDialog(QDialog):
         grid.addWidget(load_bridge_button)
 
         exit_button = QPushButton('Exit', self)
-        exit_button.clicked.connect(exit)
+        exit_button.clicked.connect(sys.exit)
         grid.addWidget(exit_button)
 
         self.setLayout(grid)
@@ -610,13 +682,15 @@ class ChoiceDialog(QDialog):
             self.accept()
 
 if __name__ == '__main__':
+    bridge = Bridge()
+    file = None
+
     app = QApplication(sys.argv)
 
     choice = ChoiceDialog()
     if not choice.exec_(): # 'reject': user pressed 'Exit', so we quit
         sys.exit(-1)      
 
-    # 'accept': continue
     main = MainWindow()
     main.show()
 
