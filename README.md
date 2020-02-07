@@ -2,26 +2,27 @@
 Bridge Project for College of DuPage's ENGIN-2201 Statics class
 
 ## Getting Started
-For now, only the Python source code is provided. Later, this will be turned into an executable file.
-
-1) Install Python, and a package manager (pip or anaconda)
-2) Install Dependencies
-    1) matplotlib - for displaying the bridge
-    2) [sapy](http://nasseralkmim.github.io/notes/2016/02/26/sapy/) (pip install sapy) - for solving the truss
-    3) numpy - for general math
-    4) PyQt5 - for creating the GUI
-3) Launch the GUI with gui.py
+### EXE
+The precompiled exe is uploaded. If you'd rather compile it yourself for security purposes, the instructions are below.
+### Compilation Instructions
+#### Linux / Ubuntu
+1) Download Python, Anaconda.
+2) conda create --name bridge numpy nomkl matplotlib pytz pyqt
+3) conda activate bridge
+4) pip install pyinstaller
+5) Navigate to directory with gui.py and bridge.py
+6) pyinstaller gui.py --hidden-import='pkg_resources.py2_warn' --onefile
+7) The EXE will now be located in ./dist. 
 
 ## Usage
-The bridge solver is not implemented yet, but I have included the classes' original .exe in this repository. 
+Design a truss structure. Make sure the left and right nodes are pinned (vertical and horizontal supports) and make sure there is at least one node on the roadway between them (minimum 3 roadway nodes).
 
-You can create your bridge using my GUI and then run it using the provided .exe by renaming your bridge to "input.txt" and placing it in the same directory as the .exe.
+To save your bridge, press the Save Bridge button and save it to a .txt file. You can then run the bridge using my program, or see the pretty animation using the old program.
 
-
-## Screenshots
+## Images
 #### Bridge GUI
 <img src="https://i.imgur.com/d56HND8.png">
 
-#### Running the Bridge with the old .exe
+#### Old Program
 
 ![Bridge Demo](https://i.imgur.com/rNWAU2n.gif)
