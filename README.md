@@ -3,7 +3,11 @@ Bridge Project for College of DuPage's ENGIN-2201 Statics class
 
 ## Getting Started
 ### Linux executable
-The precompiled exe is too big to upload to GitHub. It is uploaded on [my Google Drive](https://drive.google.com/file/d/1Gnk-EeEo5_WqfSK7TNc5oWIC0oQ1wy44/view?usp=sharing).
+The precompiled exe is too big to upload to GitHub, so I uploaded it to my Google Drive.
+
+[Linux EXE](https://drive.google.com/file/d/1Gnk-EeEo5_WqfSK7TNc5oWIC0oQ1wy44/view?usp=sharing)
+
+[Windows EXE](https://drive.google.com/file/d/1ItJNv3tUuQTwR-DhsLYpAl9Sw6k89nC-/view?usp=sharing)
 
 If you'd rather compile it yourself for security purposes (recommended), the instructions are below.
 ### Compilation Instructions
@@ -14,6 +18,15 @@ If you'd rather compile it yourself for security purposes (recommended), the ins
 4) pip install pyinstaller
 5) Navigate to directory with gui.py and bridge.py
 6) pyinstaller gui.py --hidden-import='pkg_resources.py2_warn' --onefile
+7) The EXE will now be located in ./dist. 
+
+#### Windows 10
+1) Download Python, Anaconda.
+2) conda create -c anaconda --name bridge numpy nomkl pandas matplotlib pytz pyqt
+3) conda activate bridge
+4) pip install pyinstaller
+5) Navigate to directory with gui.py and bridge.py
+6) pyinstaller gui.py --hidden-import="pkg_resources.py2_warn" --onefile
 7) The EXE will now be located in ./dist. 
 
 ## Usage
