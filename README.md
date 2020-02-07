@@ -2,8 +2,10 @@
 Bridge Project for College of DuPage's ENGIN-2201 Statics class
 
 ## Getting Started
-### EXE
-The precompiled exe is uploaded. If you'd rather compile it yourself for security purposes, the instructions are below.
+### Linux executable
+The precompiled exe is too big to upload to GitHub. It is uploaded on [my Google Drive](https://drive.google.com/file/d/1Gnk-EeEo5_WqfSK7TNc5oWIC0oQ1wy44/view?usp=sharing).
+
+If you'd rather compile it yourself for security purposes (recommended), the instructions are below.
 ### Compilation Instructions
 #### Linux / Ubuntu
 1) Download Python, Anaconda.
