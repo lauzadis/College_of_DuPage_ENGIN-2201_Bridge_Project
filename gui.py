@@ -548,7 +548,7 @@ class MainWindow(QMainWindow):
     def return_to_main(self):
         confirm = ConfirmExitDialog()
         if confirm.exec_():
-            exit(0)
+            sys.exit(0)
 
             # choice = ChoiceDialog()
             # if not choice.exec_(): # 'reject': user pressed 'Cancel', so quit
