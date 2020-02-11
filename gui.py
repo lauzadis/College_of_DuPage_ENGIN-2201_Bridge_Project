@@ -21,7 +21,7 @@ from bridge import Bridge, Node, Member
 class MainWindow(QMainWindow):    
     def __init__(self):
         super().__init__()
-        self.title = 'Bridge Project - Bridge Screen'
+        self.title = 'Design a Bridge'
         self.bridge = bridge
         self.file = file
         self.InitUI()
@@ -254,19 +254,18 @@ class MainWindow(QMainWindow):
         Adds a member to the bridge by reading the nodeA and nodeB boxes.
         If either of the boxes are empty, it won't do anything.
         '''
+        # check if the input boxes are empty
+        if node_a == None or node_b == None:
+            return
 
         if self.bridge.is_solved:
             self.efficiency_text.setText('Efficiency: None')
             self.bridge.is_solved = False
 
-        # Get node ID's, add to bridge
+        # Get node ID's
         node_a = self.bridge.get_node(self.node_a.text())
         node_b = self.bridge.get_node(self.node_b.text())
         
-        # check if the input boxes are empty
-        if node_a == None or node_b == None:
-            return
-
         # check if the member already exists
         for member in self.bridge.get_members():
             if (member.get_nodeA() == node_a and member.get_nodeB() == node_b) or (member.get_nodeA() == node_b and member.get_nodeB() == node_a):
@@ -299,6 +298,7 @@ class MainWindow(QMainWindow):
         Removes the member between nodeA and nodeB. If either box is empty, or the node doesn't exist, it does nothing.
 
         '''
+
         if self.bridge.is_solved:
             self.efficiency_text.setText('Efficiency: None')
             self.bridge.is_solved = False
@@ -339,16 +339,18 @@ class MainWindow(QMainWindow):
         '''
         Captures the click in the Y-support checkbox, tries to update the y-support of the selected node.
         '''
-        if self.bridge.is_solved:
+        if self.bridge.is_solved:  # if bridge is solved, 'unsolve' it
             self.efficiency_text.setText('Efficiency: None')
             self.bridge.is_solved = False
 
         if self.selected_node is not None:
             current_state = bool(self.selected_node.get_support_y())
-            self.selected_node.set_support_y(int(not current_state))
-            if current_state:
+            self.selected_node.set_support_y(int(not current_state))  # inverse of the current state
+            
+            if current_state:  # if we're removing a support, decrease the number of displacements
                 self.bridge.num_displacements -= 1
-            else:
+            
+            else:  # if we're adding a support, increase displacements
                 self.bridge.num_displacements += 1
 
 
@@ -392,7 +394,7 @@ class MainWindow(QMainWindow):
             self.efficiency_text.setText('Efficiency: None')
             self.bridge.is_solved = False
 
-        if self.y_coord.text() == '':
+        if self.y_coord.text() == '' or self.x_coord.text() == '':
             return
 
         if self.selected_node is not None:
@@ -403,7 +405,7 @@ class MainWindow(QMainWindow):
             
             self.ax.clear()
             self.plot_bridge()
-            self.ax.plot(self.selected_node.get_x(), self.selected_node.get_y(), 'go', picker=5)
+            self.ax.plot(self.selected_node.get_x(), self.selected_node.get_y(), 'go', picker=5)  # Plot the selected node in green
             self.canvas.draw()
             
         elif self.selected_node is None:
@@ -491,6 +493,8 @@ class MainWindow(QMainWindow):
         if self.bridge.is_solved:
             # self.ax.clear()
             seismic = plt.cm.get_cmap('bwr', 2056)
+            # seismic = plt.cm.get_cmap('rainbow', 2056)
+
             
             # Plot Members (Blue = Compression, Red = Tension)
             max_force = self.bridge.internal_forces.abs().max()
@@ -644,24 +648,17 @@ class ConfirmExitDialog(QDialog):
         grid = QGridLayout()
 
         confirm = QPushButton('Confirm Exit', self)
-        confirm.clicked.connect(self.confirm)
+        confirm.clicked.connect(self.accept)
         grid.addWidget(confirm)
         
         deny = QPushButton('Take Me Back!', self)
-        deny.clicked.connect(self.deny)
+        deny.clicked.connect(self.reject)
         grid.addWidget(deny)
 
 
         self.setLayout(grid)
         self.show()
 
-    def deny(self):
-        self.reject()
-
-    def confirm(self):
-        self.accept()
-
-    
 
 class ChoiceDialog(QDialog):
     def __init__(self, parent=None):

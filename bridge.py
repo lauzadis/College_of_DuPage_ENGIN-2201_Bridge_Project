@@ -55,12 +55,6 @@ class Bridge():
     def get_nodes(self):
         return self.nodes
 
-    def set_name(self, value):
-        self.name = value
-
-    def get_name(self):
-        return self.name
-
     def get_node(self, node_id):
         for node in self.get_nodes():
             if node.get_id() == node_id:
@@ -131,9 +125,9 @@ class Bridge():
 
     def save_to_file(self, outfile):
         with open(outfile, 'w') as file:
-            file.write(str(self.name) + ' ' + '% Your Names\n')
-            file.write(str(self.num_nodes) + ' ' + '% Number of Nodes\n')
-            file.write(str(self.num_members) + ' ' + '% Number of Elements\n\n\n')
+            file.write(str(self.name) + ' % Your Names\n')
+            file.write(str(self.num_nodes) + ' % Number of Nodes\n')
+            file.write(str(self.num_members) + ' % Number of Elements\n\n\n')
             file.write('Node position\nnumber\txvalue\tyvalue\n')
             for node in self.nodes:
                 file.write(str(node.id) + '\t' + str(node.x) + '\t' + str(node.y) + '\n')
@@ -151,7 +145,8 @@ class Bridge():
                     file.write(str(node.get_id()) + '\t' + '2\t0' + '\n')
 
     def get_load_nodes(self):
-        # The load is distributed on every node along the roadway of the truss, except for the far left and far right nodes
+        # The load is distributed on every node along the roadway (y=0) of the truss, except for the far left and far right nodes
+        
         smallest_val = float('inf')
         smallest_node = None
 
@@ -170,12 +165,6 @@ class Bridge():
         self.left_node = smallest_node
         self.right_node = biggest_node
         return [node for node in self.get_nodes() if node is not biggest_node and node is not smallest_node and node.get_y() == 0]
-
-    def get_left_node(self):
-        return self.left_node
-
-    def get_right_node(self):
-        return self.right_node
 
     def get_total_length(self):
         total = 0
@@ -261,14 +250,12 @@ class Bridge():
 
 class Node():
     def __init__(self, node_id, xCoord, yCoord, xSupport, ySupport):
-        assert 0 <= xSupport <= 1 and 0 <= ySupport <= 1 
-        self.id = str(node_id)
-        self.load = 0
-        self.x = int(xCoord)
+        assert 0 <= xSupport <= 1 and 0 <= ySupport <= 1  # Check that xSupport, ySupport are either 0 or 1 
+        self.id = str(node_id)  # Convert the node ID to a string
+        self.x = int(xCoord)  
         self.y = int(yCoord)
         self.support_x = xSupport
         self.support_y = ySupport
-        self.load_angle = None
 
     def set_x(self, x_coord):
         self.x = x_coord
@@ -290,15 +277,6 @@ class Node():
     def get_support_y(self):
         return self.support_y
 
-    def set_load(self, val):
-        assert val >= 0
-        self.load = val
-
-    def get_load(self):
-        return self.load
-
-    def set_load_angle(self, angle):
-        self.load_angle = angle
 
     def get_x(self):
         return self.x
@@ -319,16 +297,9 @@ class Member():
         self.A = nodeA
         self.B = nodeB
         self.length = self.get_length
-        self.angle = self.get_angle
 
     def get_length(self):
         return math.sqrt(pow(self.B.y - self.A.y, 2) + pow(self.B.x - self.A.x, 2))
-
-    def get_angle(self):
-        A = self.A
-        B = self.B
-
-        return math.atan( (B.y - A.y) / (B.x - A.x) )
 
     def get_nodeA(self):
         return self.A
@@ -338,8 +309,3 @@ class Member():
 
     def get_id(self):
         return self.id 
-
-    def __str__(self):
-        # return 'MEMBER BETWEEN THE FOLLOWING NODES:\n' + str(self.A) + str(self.B)
-
-        return 'Length:' + str(self.get_length())
