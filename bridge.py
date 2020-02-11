@@ -24,10 +24,14 @@ class Bridge():
         self.broken_members = None  
 
 
-    def add_node(self, node):
+    def add_node(self, add_node):
+        for node in self.nodes:
+            if node.get_x() == add_node.get_x() and node.get_y() == add_node.get_y():
+                return
+        
         self.num_nodes += 1
-        self.num_displacements += int(node.support_x) + int(node.support_y)
-        self.nodes.append(node)
+        self.num_displacements += int(add_node.support_x) + int(add_node.support_y)
+        self.nodes.append(add_node)
     
     def remove_node(self, node):
         self.num_nodes -= 1
@@ -179,7 +183,6 @@ class Bridge():
             total += member.get_length()
         return total
 
-    def get_neighbor_nodes(self, node):
         nodes = []
         for member in self.get_members():
             if member.get_nodeA().get_id() == node.get_id():
@@ -187,24 +190,19 @@ class Bridge():
             elif member.get_nodeB().get_id() == node.get_id():
                 nodes.append(member.get_nodeA())
         return nodes
-
-    def apply_load_to_nodes(self):
-        for node in self.load_nodes:
-            node.set_load(self.bridge_load / len(self.load_nodes))  # distribute the load equally over each loading node
-        
     
-    def solve(self):
+    def solve(self, load=1):
         self.load_nodes = self.get_load_nodes()
-        self.bridge_load = 0  # Set the initial load        
+
         # Construct the matrix (excluding the constraints)
-        matrix_headers = []
+        
+        matrix_headers = []  # Rows are the nodes, x and y for each.
         for node in self.get_nodes():
             matrix_headers.append(str(node.get_id()) + 'x')
             matrix_headers.append(str(node.get_id()) + 'y')
         
-        # matrix = pd.DataFrame(columns=[i+1 for i in range(len(self.nodes))], index=[i+1 for i in range(len(self.nodes))])
-        columns = ['F' + str(i.get_id()) for i in self.members]
-        
+        columns = ['F' + str(i.get_id()) for i in self.members]  # Columns are the member's internal forces
+    
         matrix = pd.DataFrame(0, columns=columns, index=matrix_headers)
 
         # Add the support reactions to the matrix (vertical and horizontal get different reactions)
@@ -217,7 +215,7 @@ class Bridge():
                 columns.append('R' + str(node.get_id()) + 'x')
                 matrix.loc[node.get_id() + 'y', 'R' + str(node.get_id()) + 'y'] = 1
 
-        matrix = matrix.fillna(0)
+        matrix = matrix.fillna(0)  # Replace empty values with 0
 
         for member in self.members:
             a = member.get_nodeA()
@@ -235,25 +233,30 @@ class Bridge():
             matrix.loc[b.get_id() + 'x', 'F' + str(member.get_id())] = b_horizontal
             matrix.loc[b.get_id() + 'y', 'F' + str(member.get_id())] = b_vertical
 
+
         load_matrix = pd.Series(0, index=matrix.index)
         for node in self.get_load_nodes():
-            load_matrix.loc[node.get_id() + 'y'] = 1 / len(self.load_nodes)
+            load_matrix.loc[node.get_id() + 'y'] = load / len(self.load_nodes)
+
 
         result = pd.Series(np.linalg.lstsq(matrix,load_matrix, rcond=None)[0], index=columns).filter(like='F')
+        
+        if load == 1:  # If just solving the bridge
+            broken_members = result.where(np.isclose(result.abs(), result.abs().max(), rtol=1e-03, atol=1e-03, equal_nan=False)).dropna()
+            self.load = 500000 / abs(broken_members.max())
+            self.is_solved = True
+            self.internal_forces = result * self.load
+            self.efficiency = self.load / self.get_total_length()
+            self.broken_members = broken_members
 
-        broken_members = result.where(np.isclose(result.abs(), result.abs().max(), rtol=1e-03, atol=1e-03, equal_nan=False)).dropna()
+        else:
+            self.is_solved= True
+            self.load = load
+            self.internal_forces = result
+            self.efficiency = self.load / self.get_total_length()
+            self.broken_members = None
 
-        total_load = 500000 / abs(broken_members.max())
-      
-        self.load = total_load
-
-        self.is_solved = True
-        self.internal_forces = result * total_load
-        self.efficiency = self.load / self.get_total_length()
-        self.broken_members = broken_members
         return
-        # return self.internal_forces, efficiency
-
 
 
 class Node():

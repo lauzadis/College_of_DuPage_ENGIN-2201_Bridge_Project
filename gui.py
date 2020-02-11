@@ -1,20 +1,22 @@
-import sys
-import numpy as np
+import sys  # To exit the program
+import numpy as np  # To do matrix calculations
+import time  # To sleep to get 30 frames per second in the animation
 
+# To add GUI elements
 from PyQt5.QtGui     import *
 from PyQt5.QtCore    import *
 from PyQt5.QtWidgets import *
 
+# To embed Matplotlib in the PyQT Application
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
-from matplotlib.lines import Line2D
+
+from matplotlib.lines import Line2D  # To detect clicks on nodes
 import matplotlib.pyplot as plt
 
 from bridge import Bridge, Node, Member
 
-# bridge = Bridge()
-# file = None
 
 class MainWindow(QMainWindow):    
     def __init__(self):
@@ -23,7 +25,8 @@ class MainWindow(QMainWindow):
         self.bridge = bridge
         self.file = file
         self.InitUI()
-        
+
+
     def InitUI(self):
         self.setWindowTitle(self.title)
 
@@ -35,12 +38,11 @@ class MainWindow(QMainWindow):
         # Embed MatplotLib Plot
         plt.grid(True)
         self.figure = Figure()
-
         self.canvas = FigureCanvas(self.figure)                
         self.toolbar = NavigationToolbar(self.canvas, self)
         self.ax = self.canvas.figure.subplots()
         
-        # plot members and nodes
+        # Initial plot of members and nodes (if they exist)
         self.plot_bridge()
         self.selected_node = None
 
@@ -49,10 +51,9 @@ class MainWindow(QMainWindow):
 
         # Implement Zoom
         self.canvas.mpl_connect('scroll_event', self.zoom)
+        
         # Implement Clicks
         self.canvas.mpl_connect('pick_event', self.onpick_node)
-
-        # self.canvas.mpl_connect('button_press_event', self.onclick)
 
         # BRIDGE MODIFICATION        
         right_subgrid = QGridLayout()
@@ -160,9 +161,10 @@ class MainWindow(QMainWindow):
         self.efficiency_text.setText('Efficiency: None')
         self.efficiency_text.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
         self.efficiency_text.setFont(QFont('Arial', 20))
-
-
         solution_vbox.addWidget(self.efficiency_text)
+
+        self.animation_checkbox = QCheckBox('Animation')
+        solution_vbox.addWidget(self.animation_checkbox)
         
         grid.addLayout(solution_vbox, 2, 1)    
 
@@ -185,8 +187,10 @@ class MainWindow(QMainWindow):
         x_support = self.x_support.isChecked()
         y_support = self.y_support.isChecked()
 
-    
-        node = Node(self.bridge.get_nodes()[-1].get_id()+1, x_coord, y_coord, x_support, y_support)
+        if x_coord == '' or y_coord == '':
+            return
+
+        node = Node(int(self.bridge.get_nodes()[-1].get_id())+1, x_coord, y_coord, x_support, y_support)
         self.bridge.add_node(node)
        
 
@@ -200,17 +204,19 @@ class MainWindow(QMainWindow):
         Removes the selected node, all members it is a part of, and its X and Y supports.
         If there is no selected node, it will check the 'Node ID' text box too.
         '''
-        if self.bridge.is_solved:
-            self.efficiency_text.setText('Efficiency: None')
-            self.bridge.is_solved = False
 
-
+        # Check that the remove_node exists
         if self.selected_node == None:
             node = self.bridge.get_node(self.remove_node_id.text())
             if node is not None:
                 self.selected_node = node
             else:
-                return
+                return 
+                 
+        # Check if the bridge is already solved, if it is, 'unsolve' it, since the bridge is being modified
+        if self.bridge.is_solved:
+            self.efficiency_text.setText('Efficiency: None')
+            self.bridge.is_solved = False
 
         # Remove selected node's members
             # Filter to find the members that DON'T contain the node we're removing
@@ -481,81 +487,71 @@ class MainWindow(QMainWindow):
         '''
         Draws the bridge using matplotlib.
         '''
-        # Plot Members
 
         if self.bridge.is_solved:
-            self.ax.clear()
+            # self.ax.clear()
             seismic = plt.cm.get_cmap('bwr', 2056)
             
             # Plot Members (Blue = Compression, Red = Tension)
-            for member in self.bridge.get_members():                
-                force = self.bridge.internal_forces.loc['F'+str(member.get_id())]            
-                # print('Node Between', member.get_nodeA().get_id(), 'and', member.get_nodeB().get_id(), ':', member.get_id(), ':', force)
-                
-                # We need to map our -500,000 to 500,000 range to the color map's 0-1 range
-                force_remapped = force + 500000 / 1000000
+            max_force = self.bridge.internal_forces.abs().max()
+
+            for member in self.bridge.get_members():   
+                force = self.bridge.internal_forces.loc['F'+str(member.get_id())] 
+                force_remapped = (force + max_force) / (max_force*2+0.000001)
 
                 nodeA = member.get_nodeA()
                 nodeB = member.get_nodeB()
+
                 # Draw a line between the nodes
                 self.ax.plot([nodeA.get_x(),nodeB.get_x()], [nodeA.get_y(),nodeB.get_y()], color=seismic(force_remapped))
+
             
-
-            # Plot Broken Member(s) in Black
-            for member_id, _ in self.bridge.broken_members.items():
-                member = self.bridge.get_member_by_id(member_id[1:])
-                nodeA = member.get_nodeA()
-                nodeB = member.get_nodeB()
-                # Draw a line between the nodes
-                self.ax.plot([nodeA.get_x(),nodeB.get_x()], [nodeA.get_y(),nodeB.get_y()], 'k')
-
-
-            # Plot Zero-Load Member(s) in Green
-            zero_load = self.bridge.internal_forces.where(np.isclose(self.bridge.internal_forces, 0, rtol=1e-03, atol=1e-03, equal_nan=False)).dropna()
-            for member_id, _ in zero_load.items():
-                member = self.bridge.get_member_by_id(member_id[1:])
-                nodeA = member.get_nodeA()
-                nodeB = member.get_nodeB()
-                # Draw a line between the nodes
-                self.ax.plot([nodeA.get_x(),nodeB.get_x()], [nodeA.get_y(),nodeB.get_y()], 'g')
-
-
-            # Plot Loading Nodes
+            # Plot Loading Nodes (with an Arrow pointing downwards)
             for node in self.bridge.load_nodes:
                 self.ax.arrow(node.get_x(), node.get_y(), dx=0, dy=-5, length_includes_head=True, head_width=2, head_length=1, width=0.5)
-                
-               
-        else:
-            for member in self.bridge.get_members():
 
+
+            if not self.animation_checkbox.isChecked():  # If the bridge is not being animated        
+                # Plot Broken Member(s) in Black
+                for member_id, _ in self.bridge.broken_members.items():
+                    member = self.bridge.get_member_by_id(member_id[1:])
+                    nodeA = member.get_nodeA()
+                    nodeB = member.get_nodeB()
+                    # Draw a line between the nodes
+                    self.ax.plot([nodeA.get_x(),nodeB.get_x()], [nodeA.get_y(),nodeB.get_y()], 'k')
+
+
+                # Plot Zero-Load Member(s) in Green
+                zero_load = self.bridge.internal_forces.where(np.isclose(self.bridge.internal_forces, 0, rtol=1e-03, atol=1e-03, equal_nan=False)).dropna()
+                for member_id, _ in zero_load.items():
+                    member = self.bridge.get_member_by_id(member_id[1:])
+                    nodeA = member.get_nodeA()
+                    nodeB = member.get_nodeB()
+                    # Draw a line between the nodes
+                    self.ax.plot([nodeA.get_x(),nodeB.get_x()], [nodeA.get_y(),nodeB.get_y()], 'g')
+
+
+        else:  # Bridge is not solved, plot normally
+            for member in self.bridge.get_members(): 
                 # Get incident and terminal node
                 nodeA = member.get_nodeA()
                 nodeB = member.get_nodeB()
                 # Draw a line between the nodes
                 self.ax.plot([nodeA.get_x(),nodeB.get_x()], [nodeA.get_y(),nodeB.get_y()], 'ro-')
-
         
+
         # Plot Nodes
         for node in self.bridge.get_nodes():
             # Plot node's X and Y coordinate
             self.ax.plot(node.get_x(), node.get_y(), 'bo', picker=5)
             # Add a text label with the node's ID
-            # print(node.get_id(), node.get_x(), node.get_y())
-            # corr = -0.05
             self.ax.annotate(node.get_id(), (node.get_x(), node.get_y()), xytext=(node.get_x()+0,node.get_y()+2))
-
+        
 
     def return_to_main(self):
         confirm = ConfirmExitDialog()
         if confirm.exec_():
             sys.exit(0)
-
-            # choice = ChoiceDialog()
-            # if not choice.exec_(): # 'reject': user pressed 'Cancel', so quit
-            #     sys.exit(-1)      
-            # # 'accept': continue
-            # main = MainWindow()
-            # main.show()
 
 
     def save_bridge(self):
@@ -570,21 +566,44 @@ class MainWindow(QMainWindow):
 
 
     def solve_bridge(self):
-        if self.bridge.is_solved:
-            return
+        # For a planar truss to be statically determinate, the number of members plus the number of support reactions must not exceed the number of joints times 2.
+        # members + support_reactions <= joints*2 to be statically determinant
 
-        bridge.solve()
-        # print('Load:', self.bridge.load)
-        # print('Length:', self.bridge.get_total_length())
-        # print('Efficiency:', self.bridge.efficiency)
-        self.efficiency_text.setText('Efficiency: ' + str(int(self.bridge.efficiency)))
-        self.redraw_plot()
-        # print(self.bridge.internal_forces)
+        # support_reaction_count = 0
+        # for node in self.bridge.get_nodes():
+        #     if node.get_support_x():
+        #         support_reaction_count += 1
+        #     if node.get_support_y():
+        #         support_reaction_count += 1
+
+        # lhs = len(self.bridge.get_members()) + support_reaction_count  # left hand side of the equation
+        # rhs = len(self.bridge.get_nodes())*2  # right hand side of the equation
+
+        # if lhs > rhs:
+        #     self.efficiency_text.setText('Efficiency: Not Solvable')
+        #     return
+
+        self.bridge.solve()
+
+        if self.animation_checkbox.isChecked():
+            for load in np.linspace(1, self.bridge.load, num=30*5):
+                print('Load:', load)
+                self.bridge.solve(load=load)
+                self.redraw_plot()
+        
+            self.animation_checkbox.setChecked(False)
+            bridge.solve(load=1)
+            self.efficiency_text.setText('Efficiency: ' + str(int(self.bridge.efficiency)))
+            self.redraw_plot()            
+            self.animation_checkbox.setChecked(True)
+
+        else:  # Not animating the bridge
+            self.efficiency_text.setText('Efficiency: ' + str(int(self.bridge.efficiency)))
+            self.redraw_plot()        
+        
         return
-        # self.bridge.is_solved = False
         
-        
-        
+           
     def zoom(self, event):
         # Function to allow scroll zooming within a matplotlib plot
         # Credit to tacaswell
@@ -681,6 +700,7 @@ class ChoiceDialog(QDialog):
             # self.send_bridge.emit(bridge)
             self.accept()
 
+
 if __name__ == '__main__':
     bridge = Bridge()
     file = None
@@ -695,6 +715,3 @@ if __name__ == '__main__':
     main.show()
 
     sys.exit(app.exec_())
-
-
-
