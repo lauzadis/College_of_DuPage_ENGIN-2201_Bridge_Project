@@ -22,8 +22,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.title = 'Design a Bridge'
-        self.bridge = bridge
-        self.file = file
+        self.bridge = Bridge()
         self.InitUI()
 
 
@@ -131,22 +130,26 @@ class MainWindow(QMainWindow):
         remove_node_vbox.addWidget(clear_selection_button)
         right_subgrid.addLayout(remove_node_vbox, 2, 0)
 
-            
-
-
         grid.addLayout(right_subgrid, 0, 1)
             
             # Save Bridge
+        bridge_buttons = QVBoxLayout()
+
         save_bridge_button = QPushButton('Save Bridge', self)
-        grid.addWidget(save_bridge_button, 1, 0)
+        bridge_buttons.addWidget(save_bridge_button)
         save_bridge_button.clicked.connect(self.save_bridge)
+
+            # Load Bridge
+        load_bridge_button = QPushButton('Load Bridge', self)
+        bridge_buttons.addWidget(load_bridge_button)
+        load_bridge_button.clicked.connect(self.load_bridge)
 
             # Return to Main Menu Button
         return_to_main_button = QPushButton('Exit', self)
-        grid.addWidget(return_to_main_button, 2, 0)            
+        bridge_buttons.addWidget(return_to_main_button)        
         return_to_main_button.clicked.connect(self.return_to_main)
 
-
+        grid.addLayout(bridge_buttons, 1, 0)
 
         # Solution Menu
         
@@ -166,11 +169,23 @@ class MainWindow(QMainWindow):
         self.animation_checkbox = QCheckBox('Animation')
         solution_vbox.addWidget(self.animation_checkbox)
         
-        grid.addLayout(solution_vbox, 2, 1)    
+        grid.addLayout(solution_vbox, 1, 1)    
 
         centralWidget.setLayout(grid)
         self.show()
 
+
+    def load_bridge(self):
+        options = QFileDialog.Options()
+        fileName, _ = QFileDialog.getOpenFileName(self,"QFileDialog.getOpenFileName()", "","All Files (*);;Text Files (*.txt)", options=options)
+        if fileName:
+            if self.bridge is not None:
+                self.bridge = Bridge()  
+          
+            self.bridge.load_from_file(fileName) 
+            self.redraw_plot()
+            self.efficiency_text.setText('Efficiency: None')
+        
 
     def add_node(self):
         '''
@@ -254,7 +269,12 @@ class MainWindow(QMainWindow):
         Adds a member to the bridge by reading the nodeA and nodeB boxes.
         If either of the boxes are empty, it won't do anything.
         '''
-        # check if the input boxes are empty
+        # check if the input boxes are empty 
+
+        # Get node ID's
+        node_a = self.bridge.get_node(self.node_a.text())
+        node_b = self.bridge.get_node(self.node_b.text())
+
         if node_a == None or node_b == None:
             return
 
@@ -262,10 +282,6 @@ class MainWindow(QMainWindow):
             self.efficiency_text.setText('Efficiency: None')
             self.bridge.is_solved = False
 
-        # Get node ID's
-        node_a = self.bridge.get_node(self.node_a.text())
-        node_b = self.bridge.get_node(self.node_b.text())
-        
         # check if the member already exists
         for member in self.bridge.get_members():
             if (member.get_nodeA() == node_a and member.get_nodeB() == node_b) or (member.get_nodeA() == node_b and member.get_nodeB() == node_a):
@@ -655,58 +671,12 @@ class ConfirmExitDialog(QDialog):
         deny.clicked.connect(self.reject)
         grid.addWidget(deny)
 
-
         self.setLayout(grid)
         self.show()
-
-
-class ChoiceDialog(QDialog):
-    def __init__(self, parent=None):
-        super(ChoiceDialog, self).__init__(parent)
-        self.InitUI()
-
-    def InitUI(self):
-        grid = QGridLayout()
-
-        new_bridge_button = QPushButton('New Bridge', self)
-        new_bridge_button.clicked.connect(self.new_bridge)
-        grid.addWidget(new_bridge_button)
-        
-        load_bridge_button = QPushButton('Load Bridge', self)
-        load_bridge_button.clicked.connect(self.load_bridge)
-        grid.addWidget(load_bridge_button)
-
-        exit_button = QPushButton('Exit', self)
-        exit_button.clicked.connect(sys.exit)
-        grid.addWidget(exit_button)
-
-        self.setLayout(grid)
-        self.show()
-
-    def new_bridge(self):
-        self.accept()
-
-    def load_bridge(self):
-        options = QFileDialog.Options()
-        # options |= QFileDialog.DontUseNativeDialog
-        fileName, _ = QFileDialog.getOpenFileName(self,"QFileDialog.getOpenFileName()", "","All Files (*);;Text Files (*.txt)", options=options)
-        if fileName:
-            # bridge = Bridge()
-            bridge.load_from_file(fileName) 
-            file = fileName       
-            # self.send_bridge.emit(bridge)
-            self.accept()
 
 
 if __name__ == '__main__':
-    bridge = Bridge()
-    file = None
-
     app = QApplication(sys.argv)
-
-    choice = ChoiceDialog()
-    if not choice.exec_(): # 'reject': user pressed 'Exit', so we quit
-        sys.exit(-1)      
 
     main = MainWindow()
     main.show()

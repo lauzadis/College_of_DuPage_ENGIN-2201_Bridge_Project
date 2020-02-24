@@ -77,7 +77,6 @@ class Bridge():
         
         # Set the bridge name (from the first line of the input file)
         name = lines[0].split(' ')[0]
-        self.set_name(name)
 
         # Get the number of nodes and members
         num_nodes = lines[1].split(' ')[0]
@@ -125,7 +124,7 @@ class Bridge():
 
     def save_to_file(self, outfile):
         with open(outfile, 'w') as file:
-            file.write(str(self.name) + ' % Your Names\n')
+            file.write('Bridge % Your Names\n')
             file.write(str(self.num_nodes) + ' % Number of Nodes\n')
             file.write(str(self.num_members) + ' % Number of Elements\n\n\n')
             file.write('Node position\nnumber\txvalue\tyvalue\n')
@@ -182,7 +181,10 @@ class Bridge():
     
     def solve(self, load=1):
         self.load_nodes = self.get_load_nodes()
-
+        if len(self.load_nodes) < 1:
+            print('Error, there are not enough loading nodes.')
+            return
+        
         # Construct the matrix (excluding the constraints)
         
         matrix_headers = []  # Rows are the nodes, x and y for each.
