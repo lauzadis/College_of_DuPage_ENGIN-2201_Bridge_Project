@@ -205,7 +205,7 @@ class MainWindow(QMainWindow):
         if x_coord == '' or y_coord == '':
             return
 
-        node = Node(int(self.bridge.get_nodes()[-1].get_id())+1, x_coord, y_coord, x_support, y_support)
+        node = Node(self.bridge.num_nodes+1, x_coord, y_coord, x_support, y_support)
         self.bridge.add_node(node)
        
 
@@ -384,7 +384,7 @@ class MainWindow(QMainWindow):
 
         if self.selected_node is not None:
             try:
-                self.selected_node.set_x(int(self.x_coord.text()))
+                self.selected_node.set_x(float(self.x_coord.text()))
             except:
                 pass
             
@@ -394,7 +394,7 @@ class MainWindow(QMainWindow):
             self.canvas.draw()
 
         elif self.selected_node is None:
-            node = Node(self.bridge.num_nodes+1, int(self.x_coord.text()), int(self.y_coord.text()), self.x_support.isChecked(), self.y_support.isChecked())
+            node = Node(self.bridge.num_nodes+1, float(self.x_coord.text()), float(self.y_coord.text()), self.x_support.isChecked(), self.y_support.isChecked())
             self.bridge.add_node(node)
             self.ax.clear()
             self.plot_bridge()
@@ -415,7 +415,7 @@ class MainWindow(QMainWindow):
 
         if self.selected_node is not None:
             try:
-                self.selected_node.set_y(int(self.y_coord.text()))
+                self.selected_node.set_y(float(self.y_coord.text()))
             except:
                 pass
             
@@ -425,7 +425,7 @@ class MainWindow(QMainWindow):
             self.canvas.draw()
             
         elif self.selected_node is None:
-            node = Node(self.bridge.num_nodes+1, int(self.x_coord.text()), int(self.y_coord.text()), self.x_support.isChecked(), self.y_support.isChecked())
+            node = Node(self.bridge.num_nodes+1, float(self.x_coord.text()), float(self.y_coord.text()), self.x_support.isChecked(), self.y_support.isChecked())
             self.bridge.add_node(node)
             self.ax.clear()
             self.plot_bridge()

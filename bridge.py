@@ -72,8 +72,12 @@ class Bridge():
             
     def load_from_file(self, filename):
         # Load the file into an array of lines
-        with open(filename, 'r') as file:
-            lines = file.readlines()
+        try:
+            with open(filename, 'r') as file:
+                lines = file.readlines()
+        except Exception:
+            print('Corrupted/invalid file')
+            return
         
         # Set the bridge name (from the first line of the input file)
         name = lines[0].split(' ')[0]
@@ -94,10 +98,14 @@ class Bridge():
         
 
         # Add Nodes
-        for i in range(node_position+2, node_position+2+int(num_nodes)):
-            row = lines[i].split('\t')
-            node = Node(str(row[0]), int(row[1]), int(row[2]), False, False)
-            self.add_node(node)
+        try:
+            for i in range(node_position+2, node_position+2+int(num_nodes)):
+                row = lines[i].split('\t')
+                node = Node(str(row[0]), int(row[1]), int(row[2]), False, False)
+                self.add_node(node)
+        except Exception:
+            print('Corrupted/invalid file')
+            return
 
 
         # Add Members            
@@ -203,7 +211,7 @@ class Bridge():
                 columns.append('R' + str(node.get_id()) + 'x')
                 matrix.loc[node.get_id() + 'x', 'R' + str(node.get_id()) + 'x'] = 1
             if node.get_support_y():
-                columns.append('R' + str(node.get_id()) + 'x')
+                columns.append('R' + str(node.get_id()) + 'y')
                 matrix.loc[node.get_id() + 'y', 'R' + str(node.get_id()) + 'y'] = 1
 
         matrix = matrix.fillna(0)  # Replace empty values with 0
@@ -254,8 +262,8 @@ class Node():
     def __init__(self, node_id, xCoord, yCoord, xSupport, ySupport):
         assert 0 <= xSupport <= 1 and 0 <= ySupport <= 1  # Check that xSupport, ySupport are either 0 or 1 
         self.id = str(node_id)  # Convert the node ID to a string
-        self.x = int(xCoord)  
-        self.y = int(yCoord)
+        self.x = float(xCoord)  
+        self.y = float(yCoord)
         self.support_x = xSupport
         self.support_y = ySupport
 
