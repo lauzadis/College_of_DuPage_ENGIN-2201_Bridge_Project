@@ -36,7 +36,7 @@ To save your bridge, press the Save Bridge button and save it to a .txt file. Yo
 
 ## Images
 #### Bridge GUI
-<img src="https://i.imgur.com/d56HND8.png">
+<img src="https://i.imgur.com/MUrtzI5.png">
 
 #### Old Program
 
