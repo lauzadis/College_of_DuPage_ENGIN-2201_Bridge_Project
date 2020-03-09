@@ -77,10 +77,10 @@ class Bridge():
                 lines = file.readlines()
         except Exception:
             print('Corrupted/invalid file')
-            return
+            return 'Corrupt / invalid file.'
         
         # Set the bridge name (from the first line of the input file)
-        name = lines[0].split(' ')[0]
+        # name = lines[0].split(' ')[0]
 
         # Get the number of nodes and members
         num_nodes = lines[1].split(' ')[0]
@@ -104,31 +104,36 @@ class Bridge():
                 node = Node(str(row[0]), int(row[1]), int(row[2]), False, False)
                 self.add_node(node)
         except Exception:
-            print('Corrupted/invalid file')
-            return
+            return "Corrupt / invalid file."
 
 
-        # Add Members            
-        for i in range(element_position+2, element_position+2+int(num_members)):
-            row = lines[i].split('\t')
+        # Add Members           
+        try: 
+            for i in range(element_position+2, element_position+2+int(num_members)):
+                row = lines[i].split('\t')
 
-            nodeA = self.get_node(row[1].strip())
-            nodeB = self.get_node(row[2].strip())
-            member = Member(row[0], nodeA, nodeB)
-            self.add_member(member)
-
+                nodeA = self.get_node(row[1].strip())
+                nodeB = self.get_node(row[2].strip())
+                member = Member(row[0], nodeA, nodeB)
+                self.add_member(member)
+        except Exception:
+            return "Corrupt / invalid file. Couldn't find Members."
 
         # Add Displacements
-        num_displacements = int(lines[displacement_position+1].split(' ')[0])
-        for i in range(displacement_position+3, displacement_position + 3 + num_displacements):
-            row = lines[i].split('\t')
-            node = self.get_node(row[0])
-            if row[1] == '1':
-                node.set_support_x(True)
-                self.num_displacements += 1
-            elif row[1] == '2':
-                node.set_support_y(True)
-                self.num_displacements += 1
+        try:
+            num_displacements = int(lines[displacement_position+1].split(' ')[0])
+            for i in range(displacement_position+3, displacement_position + 3 + num_displacements):
+                row = lines[i].split('\t')
+                node = self.get_node(row[0])
+                if row[1] == '1':
+                    node.set_support_x(True)
+                    self.num_displacements += 1
+                elif row[1] == '2':
+                    node.set_support_y(True)
+                    self.num_displacements += 1
+        except Exception:
+            return "Corrupt / invalid file. Couldn't find Displacements."
+        return ''
 
     def save_to_file(self, outfile):
         with open(outfile, 'w') as file:
@@ -179,22 +184,25 @@ class Bridge():
             total += member.get_length()
         return total
 
-        nodes = []
-        for member in self.get_members():
-            if member.get_nodeA().get_id() == node.get_id():
-                nodes.append(member.get_nodeB())
-            elif member.get_nodeB().get_id() == node.get_id():
-                nodes.append(member.get_nodeA())
-        return nodes
-    
     def solve(self, load=1):
         self.load_nodes = self.get_load_nodes()
         if len(self.load_nodes) < 1:
-            print('Error, there are not enough loading nodes.')
-            return
+            return 'There are not enough support nodes.'
         
-        # Construct the matrix (excluding the constraints)
-        
+
+        # check that both support nodes are pinned
+        for node in [self.left_node, self.right_node]:
+            if not node.get_support_y():
+                return 'One or more support nodes is unpinned.'
+
+
+        # Check that no other nodes are pinned (cheating)
+        for node in self.get_nodes():
+            if node not in [self.left_node, self.right_node]:
+                if (node.get_support_x() or node.get_support_y()) and node.get_y() > 0:
+                    return 'Only support nodes should be pinned.'
+
+        # Construct the matrix (excluding the constraints)        
         matrix_headers = []  # Rows are the nodes, x and y for each.
         for node in self.get_nodes():
             matrix_headers.append(str(node.get_id()) + 'x')
@@ -240,22 +248,30 @@ class Bridge():
 
         result = pd.Series(np.linalg.lstsq(matrix,load_matrix, rcond=None)[0], index=columns).filter(like='F')
         
-        if load == 1:  # If just solving the bridge
-            broken_members = result.where(np.isclose(result.abs(), result.abs().max(), rtol=1e-03, atol=1e-03, equal_nan=False)).dropna()
-            self.load = 500000 / abs(broken_members.max())
-            self.is_solved = True
-            self.internal_forces = result * self.load
-            self.efficiency = self.load / self.get_total_length()
-            self.broken_members = broken_members
+        broken_members = result.where(np.isclose(result.abs(), result.abs().max(), rtol=1e-03, atol=1e-03, equal_nan=False)).dropna()
+        self.load = 500000 / abs(broken_members.max())
+        self.is_solved = True
+        self.internal_forces = result * self.load
+        self.efficiency = self.load / self.get_total_length()
+        self.broken_members = broken_members
 
-        else:
-            self.is_solved= True
-            self.load = load
-            self.internal_forces = result
-            self.efficiency = self.load / self.get_total_length()
-            self.broken_members = None
+        self.write_output_file()
+        return ''
 
-        return
+    def write_output_file(self):
+        with open('./output.txt', 'w') as file:
+            file.write('Maximum Total Load of Bridge\n')
+            file.write(str(self.load) + '\n\n')
+            file.write('External Forces\n')
+            file.write('node#\tXreaction\tYreaction\n')
+            load_per_node = self.load / len(self.load_nodes)
+            for node in self.nodes:
+                if node in self.load_nodes:
+                    file.write(node.get_id() + '\t' + '0' + '\t' + str(load_per_node) + '\n')
+                else:
+                    file.write(node.get_id() + '\t' + '0' + '\t' + '0' + '\n')
+            file.write('\nInternal Forces\n')
+            self.internal_forces.to_csv(file, sep='\t', header=False)            
 
 
 class Node():

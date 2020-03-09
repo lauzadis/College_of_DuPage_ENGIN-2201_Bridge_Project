@@ -7,6 +7,7 @@ from PyQt5.QtGui     import *
 from PyQt5.QtCore    import *
 from PyQt5.QtWidgets import *
 
+
 # To embed Matplotlib in the PyQT Application
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -21,7 +22,7 @@ from bridge import Bridge, Node, Member
 class MainWindow(QMainWindow):    
     def __init__(self):
         super().__init__()
-        self.title = 'Design a Bridge'
+        self.title = 'College of DuPage ENGIN-2201 Bridge Project'
         self.bridge = Bridge()
         self.InitUI()
 
@@ -38,7 +39,7 @@ class MainWindow(QMainWindow):
         plt.grid(True)
         self.figure = Figure()
         self.canvas = FigureCanvas(self.figure)                
-        self.toolbar = NavigationToolbar(self.canvas, self)
+        self.toolbar = CustomNavigationToolbar(self.canvas, self)
         self.ax = self.canvas.figure.subplots()
         
         # Initial plot of members and nodes (if they exist)
@@ -132,19 +133,22 @@ class MainWindow(QMainWindow):
 
         grid.addLayout(right_subgrid, 0, 1)
             
-            # Save Bridge
+        # Save Bridge
         bridge_buttons = QVBoxLayout()
 
+        save_load = QHBoxLayout()
+
         save_bridge_button = QPushButton('Save Bridge', self)
-        bridge_buttons.addWidget(save_bridge_button)
+        save_load.addWidget(save_bridge_button)
         save_bridge_button.clicked.connect(self.save_bridge)
 
-            # Load Bridge
+        # Load Bridge
         load_bridge_button = QPushButton('Load Bridge', self)
-        bridge_buttons.addWidget(load_bridge_button)
+        save_load.addWidget(load_bridge_button)
         load_bridge_button.clicked.connect(self.load_bridge)
+        bridge_buttons.addLayout(save_load)
 
-            # Return to Main Menu Button
+        # Return to Main Menu Button
         return_to_main_button = QPushButton('Exit', self)
         bridge_buttons.addWidget(return_to_main_button)        
         return_to_main_button.clicked.connect(self.return_to_main)
@@ -165,27 +169,12 @@ class MainWindow(QMainWindow):
         self.efficiency_text.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
         self.efficiency_text.setFont(QFont('Arial', 20))
         solution_vbox.addWidget(self.efficiency_text)
-
-        self.animation_checkbox = QCheckBox('Animation')
-        solution_vbox.addWidget(self.animation_checkbox)
         
-        grid.addLayout(solution_vbox, 1, 1)    
+        grid.addLayout(solution_vbox, 1, 1)  
 
         centralWidget.setLayout(grid)
         self.show()
 
-
-    def load_bridge(self):
-        options = QFileDialog.Options()
-        fileName, _ = QFileDialog.getOpenFileName(self,"QFileDialog.getOpenFileName()", "","All Files (*);;Text Files (*.txt)", options=options)
-        if fileName:
-            if self.bridge is not None:
-                self.bridge = Bridge()  
-          
-            self.bridge.load_from_file(fileName) 
-            self.redraw_plot()
-            self.efficiency_text.setText('Efficiency: None')
-        
 
     def add_node(self):
         '''
@@ -298,17 +287,6 @@ class MainWindow(QMainWindow):
         self.canvas.draw()
 
 
-    def member_on_return_pressed(self):
-        '''
-        Captures the 'Enter' key press when you're typing in either the nodeA or nodeB box.
-        Tries to add the member based on what is in the boxes.
-        '''
-        try:
-            self.add_member()
-        except:
-            pass
-
-
     def remove_member(self):
         '''
         Removes the member between nodeA and nodeB. If either box is empty, or the node doesn't exist, it does nothing.
@@ -331,6 +309,17 @@ class MainWindow(QMainWindow):
             self.plot_bridge()
             self.canvas.draw()
         except:  # The member does not exist
+            pass  
+        
+
+    def member_on_return_pressed(self):
+        '''
+        Captures the 'Enter' keypress when you're typing in either the nodeA or nodeB box.
+        Tries to add the member based on what is in the boxes.
+        '''
+        try:
+            self.add_member()
+        except:
             pass
 
 
@@ -341,6 +330,7 @@ class MainWindow(QMainWindow):
         if self.bridge.is_solved:
             self.efficiency_text.setText('Efficiency: None')
             self.bridge.is_solved = False
+            self.redraw_plot()
 
         if self.selected_node is not None:
             current_state = bool(self.selected_node.get_support_x())
@@ -358,6 +348,7 @@ class MainWindow(QMainWindow):
         if self.bridge.is_solved:  # if bridge is solved, 'unsolve' it
             self.efficiency_text.setText('Efficiency: None')
             self.bridge.is_solved = False
+            self.redraw_plot()
 
         if self.selected_node is not None:
             current_state = bool(self.selected_node.get_support_y())
@@ -378,6 +369,7 @@ class MainWindow(QMainWindow):
         if self.bridge.is_solved:
             self.efficiency_text.setText('Efficiency: None')
             self.bridge.is_solved = False
+            self.redraw_plot()
 
         if self.x_coord.text() == '':
             return
@@ -409,6 +401,7 @@ class MainWindow(QMainWindow):
         if self.bridge.is_solved:
             self.efficiency_text.setText('Efficiency: None')
             self.bridge.is_solved = False
+            self.redraw_plot()
 
         if self.y_coord.text() == '' or self.x_coord.text() == '':
             return
@@ -430,21 +423,6 @@ class MainWindow(QMainWindow):
             self.ax.clear()
             self.plot_bridge()
             self.canvas.draw()
-
-
-    def redraw_plot(self, preserve_zoom=True):
-        '''
-        Redraws the plot, preserving zoom level.
-        '''
-        # Preserve zoom
-        xlim = self.ax.get_xlim()
-        ylim = self.ax.get_ylim()
-        
-        self.ax.clear()
-        self.plot_bridge()
-        self.canvas.draw()
-        self.ax.set_xlim(xlim)
-        self.ax.set_ylim(ylim)
 
 
     def onpick_node(self, event):
@@ -501,17 +479,32 @@ class MainWindow(QMainWindow):
             self.ax.set_ylim(ylim)
 
 
+    def redraw_plot(self, preserve_zoom=True):
+        '''
+        Redraws the plot, preserving zoom level.
+        '''
+        # Preserve zoom
+        xlim = self.ax.get_xlim()
+        ylim = self.ax.get_ylim()
+        
+        self.ax.clear()
+        self.plot_bridge()
+        self.canvas.draw()
+        
+        if preserve_zoom:
+            self.ax.set_xlim(xlim)
+            self.ax.set_ylim(ylim)
+
+
     def plot_bridge(self):
         '''
         Draws the bridge using matplotlib.
         '''
 
         if self.bridge.is_solved:
-            # self.ax.clear()
             seismic = plt.cm.get_cmap('bwr', 2056)
             # seismic = plt.cm.get_cmap('rainbow', 2056)
 
-            
             # Plot Members (Blue = Compression, Red = Tension)
             max_force = self.bridge.internal_forces.abs().max()
 
@@ -530,20 +523,19 @@ class MainWindow(QMainWindow):
             for node in self.bridge.load_nodes:
                 self.ax.arrow(node.get_x(), node.get_y(), dx=0, dy=-5, length_includes_head=True, head_width=2, head_length=1, width=0.5)
 
+     
+            # Plot Broken Member(s) in Black
+            for member_id, _ in self.bridge.broken_members.items():
+                member = self.bridge.get_member_by_id(member_id[1:])
+                nodeA = member.get_nodeA()
+                nodeB = member.get_nodeB()
+                # Draw a line between the nodes
+                self.ax.plot([nodeA.get_x(),nodeB.get_x()], [nodeA.get_y(),nodeB.get_y()], 'k')
 
-            if not self.animation_checkbox.isChecked():  # If the bridge is not being animated        
-                # Plot Broken Member(s) in Black
-                for member_id, _ in self.bridge.broken_members.items():
-                    member = self.bridge.get_member_by_id(member_id[1:])
-                    nodeA = member.get_nodeA()
-                    nodeB = member.get_nodeB()
-                    # Draw a line between the nodes
-                    self.ax.plot([nodeA.get_x(),nodeB.get_x()], [nodeA.get_y(),nodeB.get_y()], 'k')
 
-
-                # Plot Zero-Load Member(s) in Green
-                zero_load = self.bridge.internal_forces.where(np.isclose(self.bridge.internal_forces, 0, rtol=1e-03, atol=1e-03, equal_nan=False)).dropna()
-                for member_id, _ in zero_load.items():
+            # Plot Zero-Load Member(s) in Green
+            zero_load = self.bridge.internal_forces.where(np.isclose(self.bridge.internal_forces, 0, rtol=1e-03, atol=1e-03, equal_nan=False)).dropna()
+            for member_id, _ in zero_load.items():
                     member = self.bridge.get_member_by_id(member_id[1:])
                     nodeA = member.get_nodeA()
                     nodeB = member.get_nodeB()
@@ -568,10 +560,20 @@ class MainWindow(QMainWindow):
             self.ax.annotate(node.get_id(), (node.get_x(), node.get_y()), xytext=(node.get_x()+0,node.get_y()+2))
         
 
-    def return_to_main(self):
-        confirm = ConfirmExitDialog()
-        if confirm.exec_():
-            sys.exit(0)
+    def load_bridge(self):
+        options = QFileDialog.Options()
+        fileName, _ = QFileDialog.getOpenFileName(self,"QFileDialog.getOpenFileName()", "","All Files (*);;Text Files (*.txt)", options=options)
+        if fileName:
+            if self.bridge is not None:
+                self.bridge = Bridge()  
+          
+            text = self.bridge.load_from_file(fileName)
+            if text is not '':
+                self.error_dialog(text)
+                return
+
+            self.redraw_plot(preserve_zoom=False)
+            self.efficiency_text.setText('Efficiency: None')
 
 
     def save_bridge(self):
@@ -579,7 +581,6 @@ class MainWindow(QMainWindow):
         Writes the current bridge to a user-defined text file.
         '''
         options = QFileDialog.Options()
-        # options |= QFileDialog.setFileMode('AnyFile')
         fileName, _ = QFileDialog.getSaveFileName(self,"QFileDialog.getOpenFileName()", "","All Files (*);;Text Files (*.txt)", options=options)
         if fileName:        
             self.bridge.save_to_file(fileName)
@@ -603,27 +604,30 @@ class MainWindow(QMainWindow):
         #     self.efficiency_text.setText('Efficiency: Not Solvable')
         #     return
 
-        self.bridge.solve()
+        text = self.bridge.solve()
 
-        if self.animation_checkbox.isChecked():
-            for load in np.linspace(1, self.bridge.load, num=30*5):
-                print('Load:', load)
-                self.bridge.solve(load=load)
-                self.redraw_plot()
-        
-            self.animation_checkbox.setChecked(False)
-            bridge.solve(load=1)
-            self.efficiency_text.setText('Efficiency: ' + str(int(self.bridge.efficiency)))
-            self.redraw_plot()            
-            self.animation_checkbox.setChecked(True)
+        if text is not '':
+            self.error_dialog(text)
+            return
 
-        else:  # Not animating the bridge
-            self.efficiency_text.setText('Efficiency: ' + str(int(self.bridge.efficiency)))
-            self.redraw_plot()        
+        self.efficiency_text.setText('Efficiency: ' + str(int(self.bridge.efficiency)))
+        self.redraw_plot()        
         
         return
-        
-           
+
+
+    def return_to_main(self):
+        confirm = ConfirmExitDialog()
+        if confirm.exec_():
+            sys.exit(0)
+
+
+    def error_dialog(self, error_text):
+        error = ErrorDialog(error_text)
+        if error.exec_():
+            pass
+
+
     def zoom(self, event):
         # Function to allow scroll zooming within a matplotlib plot
         # Credit to tacaswell
@@ -675,10 +679,32 @@ class ConfirmExitDialog(QDialog):
         self.show()
 
 
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
+class ErrorDialog(QDialog):
+    def __init__(self, error_text, parent=None):
+        super(ErrorDialog, self).__init__(parent)
+        self.setWindowTitle('Error!')
+        grid = QGridLayout()
 
+        displayText = QLabel()
+        displayText.setText(error_text)
+        displayText.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+        displayText.setFont(QFont('Arial', 15))
+        grid.addWidget(displayText)
+
+        confirm = QPushButton('Ok', self)
+        confirm.clicked.connect(self.accept)
+        grid.addWidget(confirm)
+        
+        self.setLayout(grid)
+        self.show()
+
+class CustomNavigationToolbar(NavigationToolbar):
+    # Custom Toolbar to only display the buttons we want
+    toolitems = [t for t in NavigationToolbar.toolitems if t[0] in ('Home', 'Pan', 'Zoom', 'Save')]
+
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)    
     main = MainWindow()
     main.show()
-
     sys.exit(app.exec_())
