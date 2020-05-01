@@ -83,8 +83,11 @@ class Bridge():
         # name = lines[0].split(' ')[0]
 
         # Get the number of nodes and members
-        num_nodes = lines[1].split(' ')[0]
-        num_members = lines[2].split(' ')[0]
+        try:
+            num_nodes = lines[1].split(' ')[0]
+            num_members = lines[2].split(' ')[0]
+        except Exception:
+            return 'Corrupt / invalid file.'
 
 
         # Search for Locations of Key Inputs
@@ -186,24 +189,30 @@ class Bridge():
 
     def solve(self, load=1):
         self.load_nodes = self.get_load_nodes()
+        
+        # BEGIN VALIDATION CHECKS
+        
         if len(self.load_nodes) < 1:
             return 'There are not enough support nodes.'
         
 
-        # check that both support nodes are pinned
+            # both support nodes are rollers or pins
         for node in [self.left_node, self.right_node]:
             if not node.get_support_y():
                 return 'One or more support nodes is unpinned.'
 
 
-        # Check that no other nodes are pinned (cheating)
+            # Check that only support nodes are pinned
         for node in self.get_nodes():
             if node not in [self.left_node, self.right_node]:
                 if (node.get_support_x() or node.get_support_y()) and node.get_y() > 0:
                     return 'Only support nodes should be pinned.'
+        # END VALIDATION CHECKS
 
+        
         # Construct the matrix (excluding the constraints)        
-        matrix_headers = []  # Rows are the nodes, x and y for each.
+        matrix_headers = []  # Rows are the nodes, x and y component for each.
+        
         for node in self.get_nodes():
             matrix_headers.append(str(node.get_id()) + 'x')
             matrix_headers.append(str(node.get_id()) + 'y')
@@ -249,6 +258,7 @@ class Bridge():
         result = pd.Series(np.linalg.lstsq(matrix,load_matrix, rcond=None)[0], index=columns).filter(like='F')
         
         broken_members = result.where(np.isclose(result.abs(), result.abs().max(), rtol=1e-03, atol=1e-03, equal_nan=False)).dropna()
+        print(broken_members)
         self.load = 500000 / abs(broken_members.max())
         self.is_solved = True
         self.internal_forces = result * self.load
