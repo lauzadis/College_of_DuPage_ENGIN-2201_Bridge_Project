@@ -1,12 +1,10 @@
 import sys  # To exit the program
 import numpy as np  # To do matrix calculations
-import time  # To sleep to get 30 frames per second in the animation
 
 # To add GUI elements
 from PyQt5.QtGui     import *
 from PyQt5.QtCore    import *
 from PyQt5.QtWidgets import *
-
 
 # To embed Matplotlib in the PyQT Application
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -191,13 +189,16 @@ class MainWindow(QMainWindow):
         x_support = self.x_support.isChecked()
         y_support = self.y_support.isChecked()
 
-        if x_coord == '' or y_coord == '':
+        if x_coord == '':
+            self.error_dialog("Cannot add a node with no x-coordinate.")
+            return
+        if y_coord == '':
+            self.error_dialog("Cannot add a node with no y-coordinate.")
             return
 
         node = Node(self.bridge.num_nodes+1, x_coord, y_coord, x_support, y_support)
         self.bridge.add_node(node)
        
-
         self.ax.clear()
         self.plot_bridge()
         self.canvas.draw()
@@ -215,7 +216,8 @@ class MainWindow(QMainWindow):
             if node is not None:
                 self.selected_node = node
             else:
-                return 
+                self.error_dialog(f"Could not find node {self.remove_node_id.text()} in the bridge.")
+                return
                  
         # Check if the bridge is already solved, if it is, 'unsolve' it, since the bridge is being modified
         if self.bridge.is_solved:
@@ -259,12 +261,23 @@ class MainWindow(QMainWindow):
         If either of the boxes are empty, it won't do anything.
         '''
         # check if the input boxes are empty 
+        if self.node_a.text() is None:
+            self.error_dialog("Please enter a Node A.")
+            return
+
+        if self.node_b.text() is None:
+            self.error_dialog("Please enter a Node B")
+            return
 
         # Get node ID's
         node_a = self.bridge.get_node(self.node_a.text())
         node_b = self.bridge.get_node(self.node_b.text())
-
-        if node_a == None or node_b == None:
+        
+        if node_a == None:
+            self.error_dialog(f"Could not find node {self.node_a.text()} in the bridge.")
+            return
+        if node_b == None:
+            self.error_dialog(f"Could not find node {self.node_b.text()} in the bridge.")
             return
 
         if self.bridge.is_solved:
@@ -274,6 +287,7 @@ class MainWindow(QMainWindow):
         # check if the member already exists
         for member in self.bridge.get_members():
             if (member.get_nodeA() == node_a and member.get_nodeB() == node_b) or (member.get_nodeA() == node_b and member.get_nodeB() == node_a):
+                self.error_dialog(f"A member between {node_a.id} and {node_b.id} already exists.")
                 return
 
         # create the member, add it to the bridge
@@ -292,16 +306,29 @@ class MainWindow(QMainWindow):
         Removes the member between nodeA and nodeB. If either box is empty, or the node doesn't exist, it does nothing.
 
         '''
+        # check if the input boxes are empty 
+        if self.node_a.text() is None:
+            self.error_dialog("Please enter a Node A.")
+            return
+
+        if self.node_b.text() is None:
+            self.error_dialog("Please enter a Node B")
+            return
+
+        node_a = self.bridge.get_node(self.node_a.text())
+        node_b = self.bridge.get_node(self.node_b.text())
+
+        if node_a == None:
+            self.error_dialog(f"Could not find node {self.node_a.text()} in the bridge.")
+            return
+        if node_b == None:
+            self.error_dialog(f"Could not find node {self.node_b.text()} in the bridge.")
+            return
 
         if self.bridge.is_solved:
             self.efficiency_text.setText('Efficiency: None')
             self.bridge.is_solved = False
 
-        node_a = self.bridge.get_node(self.node_a.text())
-        node_b = self.bridge.get_node(self.node_b.text())
-
-        if node_a == None or node_b == None:
-            return
         try:
             member = self.bridge.get_member(node_a, node_b)
             self.bridge.remove_member(member)
@@ -309,7 +336,8 @@ class MainWindow(QMainWindow):
             self.plot_bridge()
             self.canvas.draw()
         except:  # The member does not exist
-            pass  
+            self.error_dialog("The member you are trying to remove doesn't exist.")
+            return
         
 
     def member_on_return_pressed(self):
@@ -320,7 +348,8 @@ class MainWindow(QMainWindow):
         try:
             self.add_member()
         except:
-            pass
+            self.error_dialog("Failed to create new member.")
+            return
 
 
     def on_x_support_change(self):
@@ -374,18 +403,15 @@ class MainWindow(QMainWindow):
         if self.x_coord.text() == '':
             return
 
-        if self.selected_node is not None:
-            try:
-                self.selected_node.set_x(float(self.x_coord.text()))
-            except:
-                pass
+        if self.selected_node is not None:  # if there is a selected node, update it
+            self.selected_node.set_x(float(self.x_coord.text()))
             
             self.ax.clear()
             self.plot_bridge()
             self.ax.plot(self.selected_node.get_x(), self.selected_node.get_y(), 'go', picker=5)
             self.canvas.draw()
 
-        elif self.selected_node is None:
+        else:  # otherwise, make a new one.
             node = Node(self.bridge.num_nodes+1, float(self.x_coord.text()), float(self.y_coord.text()), self.x_support.isChecked(), self.y_support.isChecked())
             self.bridge.add_node(node)
             self.ax.clear()
@@ -568,7 +594,7 @@ class MainWindow(QMainWindow):
                 self.bridge = Bridge()  
           
             text = self.bridge.load_from_file(fileName)
-            if text is not '':
+            if text != '':
                 self.error_dialog(text)
                 return
 
@@ -606,7 +632,7 @@ class MainWindow(QMainWindow):
 
         text = self.bridge.solve()
 
-        if text is not '':
+        if text != '':
             self.error_dialog(text)
             return
 
@@ -667,11 +693,11 @@ class ConfirmExitDialog(QDialog):
     def InitUI(self):
         grid = QGridLayout()
 
-        confirm = QPushButton('Confirm Exit', self)
+        confirm = QPushButton('Exit', self)
         confirm.clicked.connect(self.accept)
         grid.addWidget(confirm)
         
-        deny = QPushButton('Take Me Back!', self)
+        deny = QPushButton('Cancel', self)
         deny.clicked.connect(self.reject)
         grid.addWidget(deny)
 

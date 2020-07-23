@@ -77,7 +77,7 @@ class Bridge():
                 lines = file.readlines()
         except Exception:
             print('Corrupted/invalid file')
-            return 'Corrupt / invalid file.'
+            return 'Failed to read file.'
         
         # Set the bridge name (from the first line of the input file)
         # name = lines[0].split(' ')[0]
@@ -87,7 +87,7 @@ class Bridge():
             num_nodes = lines[1].split(' ')[0]
             num_members = lines[2].split(' ')[0]
         except Exception:
-            return 'Corrupt / invalid file.'
+            return 'Corrupt / invalid file. Failed to read number of nodes and members.'
 
 
         # Search for Locations of Key Inputs
@@ -104,10 +104,13 @@ class Bridge():
         try:
             for i in range(node_position+2, node_position+2+int(num_nodes)):
                 row = lines[i].split('\t')
-                node = Node(str(row[0]), int(row[1]), int(row[2]), False, False)
+                id = str(row[0])
+                x = int(float(row[1]))
+                y = int(float(row[2]))
+                node = Node(id, x, y, False, False)
                 self.add_node(node)
-        except Exception:
-            return "Corrupt / invalid file."
+        except Exception as e:
+            return f"Corrupt / invalid file. Failed to add nodes."
 
 
         # Add Members           
@@ -120,7 +123,7 @@ class Bridge():
                 member = Member(row[0], nodeA, nodeB)
                 self.add_member(member)
         except Exception:
-            return "Corrupt / invalid file. Couldn't find Members."
+            return "Corrupt / invalid file. Couldn't find members."
 
         # Add Displacements
         try:
@@ -135,7 +138,7 @@ class Bridge():
                     node.set_support_y(True)
                     self.num_displacements += 1
         except Exception:
-            return "Corrupt / invalid file. Couldn't find Displacements."
+            return "Corrupt / invalid file. Couldn't find displacements."
         return ''
 
     def save_to_file(self, outfile):
