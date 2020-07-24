@@ -22,7 +22,7 @@ If you'd rather compile it yourself for security purposes (recommended), the ins
 
 #### Windows 10
 1) Download Python, Anaconda.
-2) conda create -c anaconda --name bridge numpy nomkl pandas matplotlib pytz pyqt
+2) conda create -c anaconda --name bridge numpy pandas matplotlib pytz pyqt
 3) conda activate bridge
 4) pip install pyinstaller
 5) Navigate to directory with gui.py and bridge.py
