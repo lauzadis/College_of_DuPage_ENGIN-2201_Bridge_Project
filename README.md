@@ -3,11 +3,11 @@ Bridge Project for College of DuPage's ENGIN-2201 Statics class
 
 ## Getting Started
 ### Precompiled Executables
-The precompiled exe is too big to upload to GitHub, so I uploaded it to my Google Drive.
+~~The precompiled exe is too big to upload to GitHub, so I uploaded it to my Google Drive.~~
 
-[Linux EXE](https://drive.google.com/file/d/1Gnk-EeEo5_WqfSK7TNc5oWIC0oQ1wy44/view?usp=sharing)
+~~[Linux EXE](https://drive.google.com/file/d/1Gnk-EeEo5_WqfSK7TNc5oWIC0oQ1wy44/view?usp=sharing)~~
 
-[Windows EXE](https://drive.google.com/file/d/1ItJNv3tUuQTwR-DhsLYpAl9Sw6k89nC-/view?usp=sharing)
+~~[Windows EXE](https://drive.google.com/file/d/1ItJNv3tUuQTwR-DhsLYpAl9Sw6k89nC-/view?usp=sharing)~~
 
 If you'd rather compile it yourself for security purposes (recommended), the instructions are below.
 ### Compilation Instructions
